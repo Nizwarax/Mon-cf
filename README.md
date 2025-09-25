@@ -1,79 +1,73 @@
-# Bot Telegram Pemantau Lalu Lintas Cloudflare
+# Bot Telegram Pemantau Lalu Lintas Cloudflare (Edisi Worker)
 
-Bot Telegram ini memungkinkan Anda untuk memantau penggunaan lalu lintas (data dan permintaan) dari zona Cloudflare Anda langsung dari Telegram. Bot ini menggunakan API GraphQL Cloudflare untuk mengambil data 10 hari terakhir dan menyajikannya dalam format yang mudah dibaca.
+Bot Telegram ini dirancang untuk berjalan di lingkungan serverless seperti Cloudflare Workers. Bot ini memungkinkan Anda untuk memantau penggunaan lalu lintas (data dan permintaan) dari zona Cloudflare Anda langsung dari Telegram.
 
 ## Fitur
 
-- **Ambil Data Lalu Lintas**: Dapatkan laporan penggunaan data dan jumlah permintaan selama 10 hari terakhir.
-- **Berbasis Webhook**: Menggunakan webhook untuk efisiensi, sehingga tidak perlu melakukan polling.
-- **Konfigurasi Mudah**: Cukup atur beberapa variabel lingkungan untuk memulai.
-- **Dibuat dengan Node.js**: Menggunakan Express.js untuk server webhook dan `node-telegram-bot-api` untuk interaksi dengan Telegram.
+- **Serverless**: Dijalankan sebagai worker, tidak memerlukan server khusus.
+- **Berbasis Webhook**: Menggunakan webhook untuk efisiensi dan respons instan.
+- **Aman**: Kredensial dikelola sebagai *secrets* di lingkungan worker.
+- **Ringan**: Tidak ada dependensi eksternal, hanya menggunakan API bawaan worker.
 
 ## Prasyarat
 
-- [Node.js](https://nodejs.org/) (versi 14 atau lebih tinggi)
-- Akun [Cloudflare](https://www.cloudflare.com/)
-- Akun [Telegram](https://telegram.org/) dan sebuah bot Telegram (dibuat melalui [BotFather](https://t.me/botfather))
+- Akun [Cloudflare](https://www.cloudflare.com/) dengan akses ke Workers.
+- Akun [Telegram](https://telegram.org/) dan sebuah bot Telegram (dibuat melalui [@BotFather](https://t.me/botfather)).
 
-## Instalasi
+## Cara Implementasi
 
-1.  **Kloning Repositori:**
-    ```bash
-    git clone https://github.com/akun-anda/nama-repo.git
-    cd nama-repo
+### 1. Buat Worker Baru
+
+1.  Masuk ke dasbor Cloudflare Anda.
+2.  Navigasi ke menu **Workers & Pages**.
+3.  Klik **Create application** > **Create Worker**.
+4.  Beri nama worker Anda (misalnya, `telegram-traffic-bot`) dan klik **Deploy**.
+
+### 2. Konfigurasi Skrip Worker
+
+1.  Setelah worker di-deploy, klik **Edit code**.
+2.  Salin seluruh konten dari file `mon.js` dan tempelkan ke editor kode, menimpa kode default.
+3.  Klik **Save and deploy**.
+
+### 3. Atur Secrets (Variabel Lingkungan)
+
+Kredensial bot harus disimpan sebagai *secrets* agar aman.
+
+1.  Di halaman worker Anda, buka tab **Settings** > **Variables**.
+2.  Di bawah bagian **Environment Variables**, klik **Add variable** untuk setiap variabel berikut. Pastikan untuk mengklik **Encrypt** agar nilainya aman.
+
+    -   `TELEGRAM_BOT_TOKEN`: Token bot Anda dari BotFather.
+    -   `CLOUDFLARE_API_TOKEN`: Token API Cloudflare. Pastikan token memiliki izin `Zone.Analytics:Read`.
+    -   `CLOUDFLARE_ZONE_ID`: ID Zona Cloudflare yang ingin Anda pantau.
+
+### 4. Atur Webhook Telegram
+
+Agar Telegram tahu ke mana harus mengirim pembaruan, Anda perlu mengatur webhook.
+
+1.  Dapatkan URL worker Anda dari halaman utama worker (misalnya, `https://telegram-traffic-bot.nama-anda.workers.dev`).
+2.  Buka browser Anda dan jalankan URL berikut, ganti `YOUR_BOT_TOKEN` dan `YOUR_WORKER_URL` dengan nilai Anda:
+
+    ```
+    https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook?url=<YOUR_WORKER_URL>
     ```
 
-2.  **Instal Dependensi:**
-    ```bash
-    npm install
+    Contoh:
+    ```
+    https://api.telegram.org/bot12345:ABC-DEF/setWebhook?url=https://telegram-traffic-bot.nama-anda.workers.dev
     ```
 
-## Konfigurasi
+3.  Jika berhasil, Anda akan melihat respons JSON seperti ini:
+    ```json
+    {
+      "ok": true,
+      "result": true,
+      "description": "Webhook was set"
+    }
+    ```
 
-Bot ini memerlukan beberapa kredensial untuk dapat berfungsi. Buat file `.env` di direktori root proyek dan tambahkan variabel berikut:
+### 5. Selesai!
 
-```env
-# Token bot dari BotFather
-TELEGRAM_BOT_TOKEN="ISI_DENGAN_TOKEN_BOT_ANDA"
-
-# Token API Cloudflare (buat di https://dash.cloudflare.com/profile/api-tokens)
-# Pastikan token memiliki izin: Zone.Analytics:Read
-CLOUDFLARE_API_TOKEN="ISI_DENGAN_TOKEN_CLOUDFLARE_ANDA"
-
-# ID Zona Cloudflare Anda (dapat ditemukan di halaman utama domain Anda di Cloudflare)
-CLOUDFLARE_ZONE_ID="ISI_DENGAN_ID_ZONA_ANDA"
-
-# URL publik tempat server ini akan berjalan (misalnya, https://domain-anda.com atau URL ngrok)
-SERVER_URL="ISI_DENGAN_URL_SERVER_ANDA"
-
-# Port untuk server (opsional, default ke 3000)
-PORT=3000
-```
-
-### Cara Mendapatkan Kredensial
-
--   **`TELEGRAM_BOT_TOKEN`**: Bicara dengan [@BotFather](https://t.me/botfather) di Telegram dan ikuti instruksi untuk membuat bot baru. Anda akan menerima token unik.
--   **`CLOUDFLARE_API_TOKEN`**:
-    1.  Masuk ke dasbor Cloudflare.
-    2.  Buka [API Tokens](https://dash.cloudflare.com/profile/api-tokens).
-    3.  Klik "Create Token".
-    4.  Gunakan templat "Read Analytics" atau buat token kustom dengan izin `Zone:Analytics:Read`.
-    5.  Pilih zona yang ingin Anda pantau.
--   **`CLOUDFLARE_ZONE_ID`**:
-    1.  Pilih domain Anda di dasbor Cloudflare.
-    2.  Di halaman "Overview", gulir ke bawah dan Anda akan menemukan "Zone ID" di sisi kanan.
--   **`SERVER_URL`**:
-    Agar Telegram dapat mengirim pembaruan ke bot Anda, server harus dapat diakses secara publik. Anda dapat menggunakan layanan seperti [ngrok](https://ngrok.com/) untuk pengembangan lokal atau menyebarkan aplikasi ini ke platform hosting seperti Heroku, Vercel, atau server pribadi.
-
-## Menjalankan Bot
-
-Setelah Anda mengonfigurasi file `.env`, jalankan server dengan perintah berikut:
-
-```bash
-npm start
-```
-
-Server akan berjalan dan secara otomatis mengatur webhook dengan Telegram. Anda sekarang dapat berinteraksi dengan bot Anda di Telegram.
+Bot Anda sekarang aktif dan berjalan. Anda dapat mulai berinteraksi dengannya di Telegram.
 
 ## Perintah yang Tersedia
 
