@@ -15,6 +15,10 @@ Skrip ini dirancang untuk dijalankan sebagai **Cloudflare Worker**. Bot ini memu
     -   `CLOUDFLARE_API_TOKEN`
     -   `CLOUDFLARE_ZONE_ID`
 4.  Simpan file `mon.js` setelah Anda selesai mengedit.
+5.  Izin (Permissions) Sudah
+
+Ini adalah penyebab paling umum. Saat Anda membuat token, Anda harus memberinya izin yang benar. Pastikan token Anda memiliki izin: `Zone:Analytics:Read`.
+Detailnya: `Create Token -> Create Custom Token -> Beri nama -> Di bawah Permissions, pilih Zone, Analytics, dan Read`.
 
 ### Langkah 2: Deploy ke Cloudflare Worker
 
