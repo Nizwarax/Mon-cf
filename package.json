@@ -1,0 +1,13 @@
+{
+  "name": "telegram-cloudflare-monitor",
+  "version": "1.0.0",
+  "description": "A Telegram bot to monitor Cloudflare traffic using polling.",
+  "main": "mon.js",
+  "scripts": {
+    "start": "node mon.js"
+  },
+  "dependencies": {
+    "node-telegram-bot-api": "^0.61.0",
+    "node-fetch": "^2.6.7"
+  }
+}
