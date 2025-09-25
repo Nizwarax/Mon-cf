@@ -1,50 +1,67 @@
+// =================================================================
+// KONFIGURASI - SILAKAN ISI KREDENSIAL ANDA DI BAWAH INI
+// =================================================================
+
+// 1. Masukkan token bot Telegram Anda yang didapat dari @BotFather
+const TELEGRAM_BOT_TOKEN = "GANTI_DENGAN_TOKEN_TELEGRAM_ANDA";
+
+// 2. Masukkan token API Cloudflare Anda
+//    (Buat di: https://dash.cloudflare.com/profile/api-tokens dengan izin Zone.Analytics:Read)
+const CLOUDFLARE_API_TOKEN = "GANTI_DENGAN_TOKEN_CLOUDFLARE_ANDA";
+
+// 3. Masukkan ID Zona Cloudflare Anda
+//    (Dapat ditemukan di halaman utama domain Anda di Cloudflare)
+const CLOUDFLARE_ZONE_ID = "GANTI_DENGAN_ID_ZONA_ANDA";
+
+// =================================================================
+// KODE WORKER - TIDAK PERLU MENGUBAH APA PUN DI BAWAH INI
+// =================================================================
+
 export default {
-    async fetch(request, env) {
-        // Memastikan permintaan datang dari webhook Telegram (metode POST)
+    async fetch(request) {
+        // Hanya proses permintaan POST dari webhook Telegram
         if (request.method === "POST") {
             try {
                 const update = await request.json();
                 if (update.message) {
-                    await handleMessage(env, update.message);
+                    await handleMessage(update.message);
                 }
             } catch (e) {
                 console.error("Gagal memproses pembaruan webhook:", e);
             }
         }
-        // Telegram memerlukan respons 200 OK untuk mengonfirmasi penerimaan webhook.
+        // Balas Telegram dengan status 200 OK untuk mengonfirmasi penerimaan webhook
         return new Response("OK");
     },
 };
 
 /**
- * Menangani logika pesan yang masuk dari Telegram.
- * @param {object} env - Variabel lingkungan worker (berisi secrets).
- * @param {object} message - Objek pesan dari pembaruan Telegram.
+ * Menangani pesan masuk dari Telegram.
+ * @param {object} message - Objek pesan dari Telegram.
  */
-async function handleMessage(env, message) {
+async function handleMessage(message) {
     const chatId = message.chat.id;
     const text = message.text;
 
     if (text === "/start") {
-        await sendMessage(env, chatId, "Selamat datang! Gunakan perintah `/traffic` untuk melihat data pemakaian Cloudflare.");
+        await sendMessage(chatId, "Selamat datang! Gunakan perintah `/traffic` untuk melihat data pemakaian Cloudflare.");
     } else if (text === "/traffic") {
-        await sendMessage(env, chatId, "⏳ Sedang mengambil data lalu lintas, mohon tunggu...");
-        await sendCloudflareTraffic(env, chatId);
+        await sendMessage(chatId, "⏳ Sedang mengambil data lalu lintas, mohon tunggu...");
+        await sendCloudflareTraffic(chatId);
     }
 }
 
 /**
- * Mengambil data dari Cloudflare dan mengirimkannya sebagai pesan Telegram.
- * @param {object} env - Variabel lingkungan worker.
- * @param {number} chatId - ID obrolan target.
+ * Mengambil dan mengirimkan data lalu lintas dari Cloudflare.
+ * @param {number} chatId - ID obrolan Telegram.
  */
-async function sendCloudflareTraffic(env, chatId) {
+async function sendCloudflareTraffic(chatId) {
     try {
         const tenDaysAgo = getTenDaysAgoDate();
         const query = `
           query {
             viewer {
-              zones(filter: { zoneTag: "${env.CLOUDFLARE_ZONE_ID}" }) {
+              zones(filter: { zoneTag: "${CLOUDFLARE_ZONE_ID}" }) {
                 httpRequests1dGroups(
                   limit: 10,
                   orderBy: [date_DESC],
@@ -65,7 +82,7 @@ async function sendCloudflareTraffic(env, chatId) {
         const cfResponse = await fetch("https://api.cloudflare.com/client/v4/graphql", {
             method: "POST",
             headers: {
-                "Authorization": `Bearer ${env.CLOUDFLARE_API_TOKEN}`,
+                "Authorization": `Bearer ${CLOUDFLARE_API_TOKEN}`,
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({ query }),
@@ -90,22 +107,21 @@ async function sendCloudflareTraffic(env, chatId) {
             usageText += `📅 *Tanggal:* ${date}\n📦 *Total Data:* ${totalDataGB} GB\n📈 *Total Permintaan:* ${totalRequests}\n\n`;
         });
 
-        await sendMessage(env, chatId, usageText);
+        await sendMessage(chatId, usageText);
 
     } catch (error) {
         console.error("Kesalahan saat mengambil data Cloudflare:", error);
-        await sendMessage(env, chatId, `⚠️ Gagal mengambil data pemakaian.\n\n*Error:* \`${error.message}\``);
+        await sendMessage(chatId, `⚠️ Gagal mengambil data pemakaian.\n\n*Error:* \`${error.message}\``);
     }
 }
 
 /**
- * Mengirim pesan melalui API Bot Telegram.
- * @param {object} env - Variabel lingkungan worker.
- * @param {number} chatId - ID obrolan target.
+ * Mengirim pesan ke pengguna melalui API Bot Telegram.
+ * @param {number} chatId - ID obrolan Telegram.
  * @param {string} text - Teks pesan yang akan dikirim.
  */
-async function sendMessage(env, chatId, text) {
-    const url = `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`;
+async function sendMessage(chatId, text) {
+    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
     const payload = {
         chat_id: chatId,
         text: text,
@@ -119,8 +135,8 @@ async function sendMessage(env, chatId, text) {
 }
 
 /**
- * Menghitung tanggal 10 hari yang lalu dari sekarang.
- * @returns {string} Tanggal dalam format YYYY-MM-DD.
+ * Mendapatkan tanggal 10 hari yang lalu dalam format YYYY-MM-DD.
+ * @returns {string}
  */
 const getTenDaysAgoDate = () => {
     const date = new Date();
